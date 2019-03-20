@@ -11,12 +11,27 @@ module Interactor
             new.tap(&:process).steps
           end
 
+          def self.process_with_error
+            new.tap(&:process_with_error).steps
+          end
+
           def initialize
             @steps = []
           end
 
           def process
-            with_hooks { steps << :process }
+            with_hooks do
+              steps << :process
+            end
+          end
+
+          def process_with_error
+            with_hooks do
+              steps << :process
+              raise Failure
+            end
+          rescue Failure
+            run_failure_hooks
           end
         end
 
@@ -302,6 +317,94 @@ module Interactor
             :process,
             :after2,
             :after1,
+          ])
+        end
+      end
+
+      context "with a failure hook method" do
+        let(:hooked) {
+          build_hooked do
+            onfailure :add_nope
+
+            private
+
+            def add_nope
+              steps << :nope
+            end
+          end
+        }
+
+        it "runs the failure hook method" do
+          expect(hooked.process_with_error).to eq([
+            :process,
+            :nope,
+          ])
+        end
+      end
+
+      context "with an after hook block" do
+        let(:hooked) {
+          build_hooked do
+            onfailure do
+              steps << :nope
+            end
+          end
+        }
+
+        it "runs the after hook block" do
+          expect(hooked.process_with_error).to eq([
+            :process,
+            :nope,
+          ])
+        end
+      end
+
+      context "with an after hook method and block in one call" do
+        let(:hooked) {
+          build_hooked do
+            onfailure :add_nope do
+              steps << :nope_nope
+            end
+
+            private
+
+            def add_nope
+              steps << :nope
+            end
+          end
+        }
+
+        it "runs the after hook method and block in order" do
+          expect(hooked.process_with_error).to eq([
+            :process,
+            :nope_nope,
+            :nope,
+          ])
+        end
+      end
+
+      context "with an after hook method and block in multiple calls" do
+        let(:hooked) {
+          build_hooked do
+            onfailure do
+              steps << :nope
+            end
+
+            onfailure :add_nope
+
+            private
+
+            def add_nope
+              steps << :nope_nope
+            end
+          end
+        }
+
+        it "runs the after hook block and method in order" do
+          expect(hooked.process_with_error).to eq([
+            :process,
+            :nope_nope,
+            :nope,
           ])
         end
       end

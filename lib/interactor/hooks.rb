@@ -127,6 +127,43 @@ module Interactor
         hooks.each { |hook| after_hooks.unshift(hook) }
       end
 
+      # Public: Declare hooks to run after Interactor invocation. The after
+      # method may be called multiple times; subsequent calls prepend declared
+      # hooks to existing after hooks.
+      #
+      # hooks - Zero or more Symbol method names representing instance methods
+      #         to be called after interactor invocation.
+      # block - An optional block to be executed as a hook. If given, the block
+      #         is executed before methods corresponding to any given Symbols.
+      #
+      # Examples
+      #
+      #   class MyInteractor
+      #     include Interactor
+      #
+      #     after :set_finish_time
+      #
+      #     after do
+      #       puts "finished"
+      #     end
+      #
+      #     def call
+      #       puts "called"
+      #     end
+      #
+      #     private
+      #
+      #     def set_finish_time
+      #       context.finish_time = Time.now
+      #     end
+      #   end
+      #
+      # Returns nothing.
+      def onfailure(*hooks, &block)
+        hooks << block if block
+        hooks.each { |hook| failure_hooks.unshift(hook) }
+      end
+
       # Internal: An Array of declared hooks to run around Interactor
       # invocation. The hooks appear in the order in which they will be run.
       #
@@ -183,6 +220,25 @@ module Interactor
       def after_hooks
         @after_hooks ||= []
       end
+
+      # Internal: An Array of declared hooks to run when an Interactor fails.
+      # The hooks appear in the order in which they will be run.
+      #
+      # Examples
+      #
+      #   class MyInteractor
+      #     include Interactor
+      #
+      #     onfailure :oh_shit, :nope
+      #   end
+      #
+      #   MyInteractor.failure_hooks
+      #   # => [:oh_shit, :nope ]
+      #
+      # Returns an Array of Symbols and Procs.
+      def failure_hooks
+        @failure_hooks ||= []
+      end
     end
 
     private
@@ -236,6 +292,13 @@ module Interactor
     # Returns nothing.
     def run_after_hooks
       run_hooks(self.class.after_hooks)
+    end
+
+    # Internal: Run failure hooks.
+    #
+    # Returns nothing.
+    def run_failure_hooks
+      run_hooks(self.class.failure_hooks)
     end
 
     # Internal: Run a colection of hooks. The "run_hooks" method is the common

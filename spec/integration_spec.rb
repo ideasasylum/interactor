@@ -1774,4 +1774,35 @@ describe "Integration" do
       }.to raise_error("foo")
     end
   end
+
+  context "with a failing interactor" do
+    let(:failing_interactor) {
+      build_interactor do
+        onfailure do
+          context.steps << :failure
+        end
+
+        def call
+          context.steps << :call
+          fail!
+        end
+      end
+    }
+
+    it "failure successfully called interactors and the failure hook" do
+      expect {
+        begin
+          failing_interactor.call(context)
+        rescue
+          nil
+        end
+      }.to change {
+        context.steps
+      }.from([]).to([
+        :call,
+        :failure,
+      ])
+    end
+  end
+
 end

@@ -114,6 +114,7 @@ module Interactor
   def run
     run!
   rescue Failure
+    run_failure_hooks
   end
 
   # Internal: Invoke an Interactor instance along with all defined hooks. The
@@ -144,6 +145,7 @@ module Interactor
       context.called!(self)
     end
   rescue
+    run_failure_hooks
     context.rollback!
     raise
   end
